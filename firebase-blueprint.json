@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "An article for sale in the boutique",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["vetement", "pantalon", "chaussure", "accessoire"] },
+        "initialPrice": { "type": "number" },
+        "newPrice": { "type": "number" },
+        "isPromotion": { "type": "boolean" },
+        "isLiquidation": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["name", "category", "newPrice", "imageUrl", "createdAt"]
+    },
+    "AdminConfig": {
+      "title": "Admin Configuration",
+      "description": "General settings for the boutique",
+      "type": "object",
+      "properties": {
+        "whatsappLink": { "type": "string" },
+        "heroImages": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Collection of articles"
+    },
+    "config/admin": {
+      "schema": "AdminConfig",
+      "description": "Global boutique settings"
+    }
+  }
+}
