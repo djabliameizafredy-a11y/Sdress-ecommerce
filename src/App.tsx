@@ -27,9 +27,15 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={user ? <Navigate to="/public" /> : <AuthPage />} />
+        <Route path="/login" element={
+          user ? (
+            user.email?.toLowerCase() === 'vendeuradmin1945@gmail.com' ? <Navigate to="/admin" /> : <Navigate to="/public" />
+          ) : (
+            <AuthPage />
+          )
+        } />
         <Route path="/public" element={user ? <PublicPage /> : <Navigate to="/login" />} />
-        <Route path="/admin" element={user && user.email === 'VendeurAdmin1945@gmail.com' ? <AdminPage /> : <Navigate to="/login" />} />
+        <Route path="/admin" element={user && user.email?.toLowerCase() === 'vendeuradmin1945@gmail.com' ? <AdminPage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
