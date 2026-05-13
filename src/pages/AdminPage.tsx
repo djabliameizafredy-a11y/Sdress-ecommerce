@@ -5,8 +5,8 @@ import { Plus, Trash2, LogOut, Package, Image as ImageIcon, Link as LinkIcon, Do
 import { Category, Product } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION } from '../lib/firebase';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function AdminPage() {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user || user.email !== 'VendeurAdmin1945@gmail.com') {
+      if (!user || user.email?.toLowerCase() !== 'vendeuradmin1945@gmail.com') {
         localStorage.removeItem('isAdmin');
         navigate('/login');
       } else {
@@ -45,14 +45,20 @@ export default function AdminPage() {
         pList.push({ id: doc.id, ...doc.data() } as Product);
       });
       setProducts(pList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, PRODUCTS_COLLECTION);
     });
 
     // Real-time config sync
+    const configPath = `${CONFIG_COLLECTION}/whatsapp`;
     const configRef = doc(db, CONFIG_COLLECTION, 'whatsapp');
     const unsubscribeConfig = onSnapshot(configRef, (doc) => {
       if (doc.exists()) {
-        setWhatsappLink(doc.data().link);
+        const data = doc.data();
+        setWhatsappLink(data.whatsappLink || data.link || '');
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, configPath);
     });
 
     return () => {
@@ -86,15 +92,16 @@ export default function AdminPage() {
       setImgUrl('');
       setIsAdding(false);
     } catch (error) {
-      console.error("Error adding product:", error);
+      handleFirestoreError(error, OperationType.WRITE, PRODUCTS_COLLECTION);
     }
   };
 
   const handleDelete = async (id: string) => {
+    const docPath = `${PRODUCTS_COLLECTION}/${id}`;
     try {
       await deleteDoc(doc(db, PRODUCTS_COLLECTION, id));
     } catch (error) {
-      console.error("Error deleting product:", error);
+      handleFirestoreError(error, OperationType.DELETE, docPath);
     }
   };
 
@@ -105,21 +112,23 @@ export default function AdminPage() {
   };
 
   const saveWhatsapp = async () => {
+    const docPath = `${CONFIG_COLLECTION}/whatsapp`;
     try {
-      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { link: whatsappLink });
+      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { whatsappLink: whatsappLink });
       setShowWaConfig(false);
     } catch (error) {
-      console.error("Error saving whatsapp link:", error);
+      handleFirestoreError(error, OperationType.WRITE, docPath);
     }
   };
 
   const deleteWhatsapp = async () => {
+    const docPath = `${CONFIG_COLLECTION}/whatsapp`;
     try {
-      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { link: '' });
+      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { whatsappLink: '' });
       setWhatsappLink('');
       setShowWaConfig(false);
     } catch (error) {
-      console.error("Error deleting whatsapp link:", error);
+      handleFirestoreError(error, OperationType.WRITE, docPath);
     }
   };
 

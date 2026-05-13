@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Github, Lock, User } from 'lucide-react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { signInWithGoogle, signInWithApple, auth } from '../lib/firebase';
+import { Mail, Lock, User } from 'lucide-react';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -12,58 +12,67 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const googleLogo = "https://www.image2url.com/r2/default/images/1778174780517-57849e75-9b88-466f-8a03-7cb576402ec9.jpg";
-  const appleLogo = "https://www.image2url.com/r2/default/images/1778174780517-6467389a-313d-4c3d-bb62-72be13956792.jpg";
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      setError('Veuillez remplir tous les champs.');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 
     try {
-      // Admin Access Check via Firebase
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      if (result.user.email === 'VendeurAdmin1945@gmail.com') {
+      // 1. Tenter la connexion
+      try {
+        await signInWithEmailAndPassword(auth, cleanEmail, password);
+      } catch (signInErr: any) {
+        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
+          try {
+            await createUserWithEmailAndPassword(auth, cleanEmail, password);
+          } catch (regErr: any) {
+            if (regErr.code === 'auth/email-already-in-use') {
+              setError('Code secret incorrect pour ce compte.');
+            } else if (regErr.code === 'auth/weak-password') {
+              setError('Le code secret doit faire au moins 6 caractères.');
+            } else if (regErr.code === 'auth/operation-not-allowed') {
+              setError('L\'admin doit activer "Email/Password" dans la console Firebase (Authentification > Sign-in method).');
+            } else {
+              setError(`Erreur d'inscription: ${regErr.code}`);
+            }
+            setIsLoading(false);
+            return;
+          }
+        } else if (signInErr.code === 'auth/wrong-password') {
+          setError('Code secret incorrect.');
+          setIsLoading(false);
+          return;
+        } else if (signInErr.code === 'auth/operation-not-allowed') {
+          setError('L\'admin doit activer "Email/Password" dans la console Firebase (Authentification > Sign-in method).');
+          setIsLoading(false);
+          return;
+        } else if (signInErr.code === 'auth/network-request-failed') {
+          setError('Problème de connexion. Vérifiez votre internet.');
+          setIsLoading(false);
+          return;
+        } else {
+          throw signInErr;
+        }
+      }
+
+      // 3. Redirection manuelle forcée si on est déjà sur l'email admin
+      if (cleanEmail.toLowerCase() === 'vendeuradmin1945@gmail.com') {
         localStorage.setItem('isAdmin', 'true');
         navigate('/admin');
       } else {
         localStorage.setItem('isUser', 'true');
         navigate('/public');
       }
-    } catch (err: any) {
-      console.error("Auth error:", err);
-      setError('Identifiants incorrects ou problème de connexion.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const socialLogin = async (provider: 'google' | 'apple' | 'email') => {
-    setError('');
-    
-    try {
-      if (provider === 'google') {
-        await signInWithGoogle();
-        localStorage.setItem('isUser', 'true');
-        navigate('/public');
-      } else if (provider === 'apple') {
-        await signInWithApple();
-        localStorage.setItem('isUser', 'true');
-        navigate('/public');
-      } else if (provider === 'email') {
-        // Just focus the email input if they click the email icon
-        const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
-        emailInput?.focus();
-      }
     } catch (err: any) {
-      console.error(`Error logging in with ${provider}:`, err);
-      if (err.code === 'auth/popup-blocked') {
-        setError('Le popup a été bloqué par votre navigateur. Veuillez autoriser les popups pour ce site.');
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        // User closed the popup, don't show a big error
-      } else {
-        setError('Erreur d\'authentification. Veuillez réessayer.');
-      }
+      console.error("Auth global error:", err);
+      setError(`Erreur: ${err.message || 'Identifiants invalides'}`);
     } finally {
       setIsLoading(false);
     }
@@ -86,44 +95,48 @@ export default function AuthPage() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative z-10 glass-panel p-6 md:p-8 w-full max-w-md mx-4"
+        className="relative z-10 glass-panel p-6 md:p-10 w-full max-w-sm mx-4"
       >
         <div className="text-center mb-8 md:mb-10">
           <motion.h1 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-3xl md:text-4xl font-black italic tracking-tighter text-white mb-2"
+            className="text-4xl md:text-5xl font-black italic tracking-tighter text-white mb-2"
           >
             Sdress
           </motion.h1>
-          <p className="text-white/50 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold">Système d'accès</p>
+          <p className="text-white/40 text-[9px] md:text-[11px] uppercase tracking-[0.3em] font-black">Accès Privé</p>
         </div>
 
         <form onSubmit={handleAuth} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-black text-white/40 tracking-widest ml-1">Identifiant</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+          <div className="space-y-3">
+            <label className="text-[10px] uppercase font-black text-white/40 tracking-[0.3em] ml-1 flex justify-between">
+              <span>Identifiant</span>
+            </label>
+            <div className="relative group">
+              <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-white transition-colors" />
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email Administrateur ou Client"
-                className="liquid-input w-full pl-10 text-white text-sm"
+                placeholder="Votre adresse email"
+                className="liquid-input w-full py-5 pl-14 pr-6 text-white text-sm font-bold bg-white/5 border-white/10 rounded-2xl focus:bg-white/10 focus:border-white/30 transition-all outline-none"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-black text-white/40 tracking-widest ml-1">Code Secret</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+          <div className="space-y-3">
+            <label className="text-[10px] uppercase font-black text-white/40 tracking-[0.3em] ml-1 flex justify-between">
+              <span>Code Secret</span>
+            </label>
+            <div className="relative group">
+              <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-white transition-colors" />
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe"
-                className="liquid-input w-full pl-10 text-white text-sm"
+                placeholder="Votre code secret"
+                className="liquid-input w-full py-5 pl-14 pr-6 text-white text-sm font-bold bg-white/5 border-white/10 rounded-2xl focus:bg-white/10 focus:border-white/30 transition-all outline-none"
               />
             </div>
           </div>
@@ -143,41 +156,12 @@ export default function AuthPage() {
 
           <button 
             type="submit"
-            className="w-full bg-white text-black font-black py-4 rounded-xl uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all"
+            disabled={isLoading}
+            className="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-[10px] tracking-[0.3em] hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
           >
-            Accéder
+            {isLoading ? 'Vérification...' : 'Accéder au shop'}
           </button>
         </form>
-
-        <div className="relative my-8 border-t border-white/10">
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-transparent px-4 text-[10px] font-black uppercase text-white/20 tracking-widest">
-            Ou se connecter avec
-          </span>
-        </div>
-
-        <div className="flex gap-4">
-          <button 
-            onClick={() => socialLogin('google')}
-            disabled={isLoading}
-            className="flex-1 glass-panel p-3 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-50"
-          >
-            <img src={googleLogo} alt="Google" className="w-6 h-6 object-contain" referrerPolicy="no-referrer" />
-          </button>
-          <button 
-            onClick={() => socialLogin('apple')}
-            disabled={isLoading}
-            className="flex-1 glass-panel p-3 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-50"
-          >
-            <img src={appleLogo} alt="Apple" className="w-6 h-6 object-contain invert" referrerPolicy="no-referrer" />
-          </button>
-          <button 
-            onClick={() => socialLogin('email')}
-            disabled={isLoading}
-            className="flex-1 glass-panel p-3 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-50"
-          >
-            <Mail className="text-white w-5 h-5" />
-          </button>
-        </div>
       </motion.div>
     </div>
   );

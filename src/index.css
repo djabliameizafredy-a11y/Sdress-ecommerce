@@ -25,7 +25,7 @@
 .liquid-input {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  @apply rounded-xl p-3 outline-none transition-all focus:bg-white/20 focus:border-white/40;
+  @apply rounded-xl outline-none transition-all focus:bg-white/20 focus:border-white/40;
 }
 
 @layer utilities {

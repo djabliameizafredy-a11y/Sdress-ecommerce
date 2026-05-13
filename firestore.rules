@@ -1,30 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    
+    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
     
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'VendeurAdmin1945@gmail.com';
+      // Direct comparison with lowercased email
+      return isSignedIn() && 
+             request.auth.token.email != null && 
+             request.auth.token.email.lower() == 'vendeuradmin1945@gmail.com';
     }
 
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Products collection
+    // --- Match Blocks ---
+
+    // Allow public read for products, write only for admin
     match /products/{productId} {
-      allow read: if true; // Publicly viewable
-      allow write: if isAdmin();
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Config collection
+    // Allow public read for config, write only for admin
     match /config/{configId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Default deny for everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

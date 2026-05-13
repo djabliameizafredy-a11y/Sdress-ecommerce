@@ -5,7 +5,7 @@ import { Category, Product } from '../types';
 import { useNavigate } from 'react-router-dom';
 import Plasma from '../components/Plasma';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION } from '../lib/firebase';
+import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, onSnapshot, doc } from 'firebase/firestore';
 
 const THEMES = {
@@ -59,14 +59,20 @@ export default function PublicPage() {
         pList.push({ id: doc.id, ...doc.data() } as Product);
       });
       setProducts(pList);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, PRODUCTS_COLLECTION);
     });
 
     // Sync WhatsApp config
+    const configPath = `${CONFIG_COLLECTION}/whatsapp`;
     const configRef = doc(db, CONFIG_COLLECTION, 'whatsapp');
     const unsubscribeConfig = onSnapshot(configRef, (doc) => {
       if (doc.exists()) {
-        setWhatsappLink(doc.data().link);
+        const data = doc.data();
+        setWhatsappLink(data.whatsappLink || data.link || '');
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, configPath);
     });
 
     const interval = setInterval(() => {
