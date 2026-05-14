@@ -8,34 +8,27 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      // Direct comparison with lowercased email
       return isSignedIn() && 
              request.auth.token.email != null && 
              request.auth.token.email.lower() == 'vendeuradmin1945@gmail.com';
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
     // --- Match Blocks ---
 
-    // Allow public read for products, write only for admin
+    // Products: Everyone can read, only Admin can write
     match /products/{productId} {
       allow read: if true;
-      allow create, update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Allow public read for config, write only for admin
+    // Config: Everyone can read, only Admin can write
     match /config/{configId} {
       allow read: if true;
-      allow create, update: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Default deny for everything else
-    match /{allPaths=**} {
+    // Default deny for everything else to maintain security
+    match /{document=**} {
       allow read, write: if false;
     }
   }
