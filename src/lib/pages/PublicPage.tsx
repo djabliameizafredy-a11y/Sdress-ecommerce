@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, LogOut, ChevronRight, MessageCircle, X } from 'lucide-react';
-import { Category, Product } from '../types';
+import { Category, Product } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import Plasma from '../components/Plasma';
+import Plasma from '../../components/Plasma';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, onSnapshot, doc } from 'firebase/firestore';
 
 const THEMES = {

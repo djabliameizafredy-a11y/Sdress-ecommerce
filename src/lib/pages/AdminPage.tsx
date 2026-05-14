@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, LogOut, Package, Image as ImageIcon, Link as LinkIcon, DollarSign, Tag, Archive, ExternalLink, BarChart3, X, Menu } from 'lucide-react';
-import { Category, Product } from '../types';
+import { Category, Product } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, PRODUCTS_COLLECTION, CONFIG_COLLECTION, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function AdminPage() {

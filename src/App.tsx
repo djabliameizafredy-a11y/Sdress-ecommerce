@@ -2,11 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './lib/firebase';
-import PublicPage from './pages/PublicPage';
-import AdminPage from './pages/AdminPage';
-import AuthPage from './pages/AuthPage';
-import LandingPage from './pages/LandingPage';
-
+import PublicPage from './lib/pages/PublicPage';
+import AdminPage from './lib/pages/AdminPage';
+import AuthPage from './lib/pages/AuthPage';
+import LandingPage from './lib/pages/LandingPage';
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
