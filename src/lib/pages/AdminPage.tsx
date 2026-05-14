@@ -26,13 +26,24 @@ export default function AdminPage() {
   const [isPromo, setIsPromo] = useState(false);
   const [isLiq, setIsLiq] = useState(false);
   const [imgUrl, setImgUrl] = useState('');
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user || user.email?.toLowerCase() !== 'vendeuradmin1945@gmail.com') {
+      if (!user) {
+        localStorage.removeItem('isAdmin');
+        navigate('/login');
+        return;
+      }
+      
+      const userEmail = user.email?.toLowerCase();
+      const isAdmin = userEmail === 'vendeuradmin1945@gmail.com' || user.uid === 'WvJbwhZ47IPIHtShtyJGfjQC1Vq1';
+
+      if (!isAdmin) {
         localStorage.removeItem('isAdmin');
         navigate('/login');
       } else {
+        localStorage.setItem('isAdmin', 'true');
         setIsLoading(false);
       }
     });
@@ -46,11 +57,11 @@ export default function AdminPage() {
       });
       setProducts(pList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, PRODUCTS_COLLECTION);
+      // Background products sync should not crash the app for the admin if permissions are still propagating
+      console.warn('Sync products error:', error.message);
     });
 
     // Real-time config sync
-    const configPath = `${CONFIG_COLLECTION}/whatsapp`;
     const configRef = doc(db, CONFIG_COLLECTION, 'whatsapp');
     const unsubscribeConfig = onSnapshot(configRef, (doc) => {
       if (doc.exists()) {
@@ -58,7 +69,7 @@ export default function AdminPage() {
         setWhatsappLink(data.whatsappLink || data.link || '');
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, configPath);
+      console.warn('Sync config error:', error.message);
     });
 
     return () => {
@@ -69,9 +80,22 @@ export default function AdminPage() {
   }, [navigate]);
 
   const handleAddProduct = async () => {
-    if (!newName || !newPrice || !imgUrl) return;
+    if (!newName || !newPrice || !imgUrl) {
+      setFormError('Veuillez remplir tous les champs et ajouter une image.');
+      return;
+    }
+
+    setFormError('');
+    setIsLoading(true);
 
     try {
+      // Check if image size is roughly within Firestore limits (1MB)
+      if (imgUrl.length > 800000) {
+        setFormError('Image trop lourde. Veuillez utiliser une image plus légère (< 1MB).');
+        setIsLoading(false);
+        return;
+      }
+
       await addDoc(collection(db, PRODUCTS_COLLECTION), {
         name: newName,
         category: newCat,
@@ -91,8 +115,11 @@ export default function AdminPage() {
       setIsLiq(false);
       setImgUrl('');
       setIsAdding(false);
-    } catch (error) {
+    } catch (error: any) {
+      setFormError(`Erreur: ${error.message || 'Permissions insuffisantes'}`);
       handleFirestoreError(error, OperationType.WRITE, PRODUCTS_COLLECTION);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -113,11 +140,15 @@ export default function AdminPage() {
 
   const saveWhatsapp = async () => {
     const docPath = `${CONFIG_COLLECTION}/whatsapp`;
+    setIsLoading(true);
     try {
       await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { whatsappLink: whatsappLink });
       setShowWaConfig(false);
-    } catch (error) {
+    } catch (error: any) {
+      alert(`Erreur WhatsApp: ${error.message}`);
       handleFirestoreError(error, OperationType.WRITE, docPath);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -378,11 +409,19 @@ export default function AdminPage() {
                         </label>
                       )}
                     </div>
+
+                    {formError && (
+                      <p className="text-red-500 text-[10px] font-black uppercase text-center animate-pulse">
+                        {formError}
+                      </p>
+                    )}
+
                     <button 
                       onClick={handleAddProduct}
-                      className="w-full bg-black text-white py-5 rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-[0.2em] hover:bg-neutral-800 transition-colors"
+                      className="w-full bg-black text-white py-5 rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-[0.2em] hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                      disabled={isLoading}
                     >
-                      Confirmer la publication
+                      {isLoading ? 'Publication en cours...' : 'Confirmer la publication'}
                     </button>
                   </div>
                 </div>

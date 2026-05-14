@@ -31,7 +31,7 @@
       "schema": "Product",
       "description": "Collection of articles"
     },
-    "config/admin": {
+    "config/whatsapp": {
       "schema": "AdminConfig",
       "description": "Global boutique settings"
     }

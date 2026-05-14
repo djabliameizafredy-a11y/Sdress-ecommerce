@@ -2,34 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isAdmin() {
-      return isSignedIn() && 
-             request.auth.token.email != null && 
-             request.auth.token.email.lower() == 'vendeuradmin1945@gmail.com';
+      return isSignedIn() && (
+        request.auth.token.email.lower() == 'vendeuradmin1945@gmail.com' ||
+        request.auth.uid == 'WvJbwhZ47IPIHtShtyJGfjQC1Vq1' ||
+        request.auth.uid == 'bGdBJwkfcwgtP0PxCBwopInYhsz1'
+      );
     }
 
-    // --- Match Blocks ---
-
-    // Products: Everyone can read, only Admin can write
+    // Products: Everyone can read, Admin can write
     match /products/{productId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Config: Everyone can read, only Admin can write
+    // Config: Everyone can read whatsapp, Admin can write anything
     match /config/{configId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Default deny for everything else to maintain security
+    // Force default deny for any accidental other collections
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
