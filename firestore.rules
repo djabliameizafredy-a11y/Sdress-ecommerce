@@ -14,10 +14,19 @@ service cloud.firestore {
       );
     }
 
-    // Products: Everyone can read, Admin can write
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100
+        && data.newPrice is number && data.newPrice > 0
+        && data.initialPrice is number && data.initialPrice >= 0
+        && data.category in ['vetement', 'pantalon', 'chaussure', 'accessoire']
+        && data.imageUrl is string && data.imageUrl.size() > 0;
+    }
+
+    // Products: Everyone can read, Admin can write with validation
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     // Config: Everyone can read whatsapp, Admin can write anything
@@ -32,4 +41,3 @@ service cloud.firestore {
     }
   }
 }
-
