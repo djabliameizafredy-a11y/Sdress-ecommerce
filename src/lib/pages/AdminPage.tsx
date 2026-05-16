@@ -80,8 +80,21 @@ export default function AdminPage() {
   }, [navigate]);
 
   const handleAddProduct = async () => {
+    const priceNum = parseFloat(newPrice);
+    const initialPriceNum = parseFloat(initialPrice) || 0;
+
     if (!newName || !newPrice || !imgUrl) {
       setFormError('Veuillez remplir tous les champs et ajouter une image.');
+      return;
+    }
+
+    if (isNaN(priceNum) || priceNum <= 0) {
+      setFormError('Le nouveau prix doit être un nombre positif.');
+      return;
+    }
+
+    if (initialPrice && (isNaN(initialPriceNum) || initialPriceNum < 0)) {
+      setFormError('Le prix initial doit être un nombre positif.');
       return;
     }
 
@@ -97,10 +110,10 @@ export default function AdminPage() {
       }
 
       await addDoc(collection(db, PRODUCTS_COLLECTION), {
-        name: newName,
+        name: newName.trim(),
         category: newCat,
-        initialPrice: parseFloat(initialPrice) || 0,
-        newPrice: parseFloat(newPrice),
+        initialPrice: initialPriceNum,
+        newPrice: priceNum,
         isPromotion: isPromo,
         isLiquidation: isLiq,
         imageUrl: imgUrl,
@@ -142,7 +155,7 @@ export default function AdminPage() {
     const docPath = `${CONFIG_COLLECTION}/whatsapp`;
     setIsLoading(true);
     try {
-      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { whatsappLink: whatsappLink });
+      await setDoc(doc(db, CONFIG_COLLECTION, 'whatsapp'), { whatsappLink: whatsappLink.trim() }, { merge: true });
       setShowWaConfig(false);
     } catch (error: any) {
       alert(`Erreur WhatsApp: ${error.message}`);
