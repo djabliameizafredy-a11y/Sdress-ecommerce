@@ -48,6 +48,11 @@ export default function PublicPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [whatsappLink, setWhatsappLink] = useState('');
   const [activeCat, setActiveCat] = useState<Category>(Category.VETEMENT);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [cart, setCart] = useState<Product[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showWarning, setShowWarning] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,10 +103,6 @@ export default function PublicPage() {
       }
     }
   }, [activeCat]);
-  const [slideIdx, setSlideIdx] = useState(0);
-  const [cart, setCart] = useState<Product[]>([]);
-  const [showWarning, setShowWarning] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const heroImage = useMemo(() => {
     if (products.length === 0) return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop';
@@ -110,16 +111,37 @@ export default function PublicPage() {
 
   const filteredProducts = products.filter(p => p.category === activeCat);
 
-  const buyWithWhatsapp = (productId: string) => {
-    setShowWarning(productId);
+  const addToCart = (product: Product) => {
+    setCart(prev => [...prev, product]);
   };
 
-  const confirmPurchase = (productId: string) => {
-    const product = products.find(p => p.id === productId);
+  const removeFromCart = (productId: string) => {
+    setCart(prev => {
+      const index = prev.findIndex(p => p.id === productId);
+      if (index !== -1) {
+        const newCart = [...prev];
+        newCart.splice(index, 1);
+        return newCart;
+      }
+      return prev;
+    });
+  };
+
+  const clearCart = () => setCart([]);
+
+  const buyWithWhatsapp = () => {
+    if (cart.length === 0) return;
+    setShowWarning('cart');
+  };
+
+  const confirmPurchase = () => {
     const waLink = whatsappLink || 'https://wa.me/33600000000';
-    const message = `Bonjour Sdress, je souhaite acheter l'article: ${product?.name} (${product?.newPrice} €).`;
+    const total = cart.reduce((sum, p) => sum + p.newPrice, 0);
+    const itemsList = cart.map(p => `- ${p.name} (${p.newPrice} €)`).join('\n');
+    const message = `Bonjour Sdress, je souhaite commander :\n\n${itemsList}\n\nTotal : ${total} €`;
     window.open(`${waLink}?text=${encodeURIComponent(message)}`, '_blank');
     setShowWarning(null);
+    setIsCartOpen(false);
   };
 
   const logout = async () => {
@@ -192,12 +214,93 @@ export default function PublicPage() {
             />
           </button>
 
-          <div className={`relative glass-panel p-2 md:p-3 ${isDarkMode ? 'bg-white/5 border-white/10' : ''}`}>
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className={`relative glass-panel p-2 md:p-3 pointer-events-auto transition-transform active:scale-95 ${isDarkMode ? 'bg-white/5 border-white/10' : ''}`}
+          >
              <ShoppingCart size={16} className={isDarkMode ? currentTheme.darkColor : currentTheme.color} />
              {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-extrabold w-4 h-4 flex items-center justify-center rounded-full">{cart.length}</span>}
-          </div>
+          </button>
         </motion.div>
       </nav>
+
+      {/* Cart Drawer */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className={`fixed right-0 top-0 h-full w-full max-w-md z-[70] shadow-2xl flex flex-col ${isDarkMode ? 'bg-neutral-900 text-white' : 'bg-white text-black'}`}
+            >
+              <div className="p-6 flex justify-between items-center border-b border-white/10">
+                <h2 className="text-xl font-black uppercase italic">Panier ({cart.length})</h2>
+                <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center opacity-30">
+                    <ShoppingCart size={48} className="mb-4" />
+                    <p className="font-bold uppercase text-[10px] tracking-widest">Votre panier est vide</p>
+                  </div>
+                ) : (
+                  cart.map((item, idx) => (
+                    <div key={`${item.id}-${idx}`} className={`flex gap-4 p-4 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-neutral-50 border-neutral-200'}`}>
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0">
+                        <img src={item.imageUrl} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-black uppercase italic text-sm truncate">{item.name}</h4>
+                        <p className="text-lg font-black">{item.newPrice} €</p>
+                        <button
+                          onClick={() => removeFromCart(item.id!)}
+                          className="text-[10px] font-bold text-rose-500 uppercase mt-1"
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="p-6 border-t border-white/10 space-y-4">
+                  <div className="flex justify-between items-end">
+                    <span className="text-[10px] font-black uppercase opacity-50">Total</span>
+                    <span className="text-3xl font-black">{cart.reduce((sum, p) => sum + p.newPrice, 0)} €</span>
+                  </div>
+                  <button
+                    onClick={buyWithWhatsapp}
+                    className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle size={18} />
+                    Commander sur WhatsApp
+                  </button>
+                  <button
+                    onClick={clearCart}
+                    className="w-full py-2 text-[10px] font-black uppercase opacity-30 hover:opacity-100 transition-opacity"
+                  >
+                    Vider le panier
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Hero Frame */}
       <section className="h-screen w-full relative overflow-hidden flex items-center px-6 md:px-12">
@@ -282,7 +385,7 @@ export default function PublicPage() {
                 <ProductCard 
                   key={product.id} 
                   product={product} 
-                  onBuy={() => buyWithWhatsapp(product.id!)}
+                  onAddToCart={() => addToCart(product)}
                   theme={currentTheme}
                   isDarkMode={isDarkMode}
                 />
@@ -322,7 +425,7 @@ export default function PublicPage() {
                  </p>
                  <div className="space-y-3">
                     <button 
-                      onClick={() => confirmPurchase(showWarning)}
+                      onClick={confirmPurchase}
                       className="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-200"
                     >
                       Poursuivre mon achat
@@ -345,7 +448,15 @@ export default function PublicPage() {
   );
 }
 
-const ProductCard: React.FC<{ product: Product, onBuy: () => void, theme: any, isDarkMode: boolean }> = ({ product, onBuy, theme, isDarkMode }) => {
+const ProductCard: React.FC<{ product: Product, onAddToCart: () => void, theme: any, isDarkMode: boolean }> = ({ product, onAddToCart, theme, isDarkMode }) => {
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAdd = () => {
+    onAddToCart();
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -377,12 +488,12 @@ const ProductCard: React.FC<{ product: Product, onBuy: () => void, theme: any, i
         </div>
         
         <button 
-          onClick={onBuy}
+          onClick={handleAdd}
           className={`w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2 ${
-            theme.accent
+            isAdded ? 'bg-emerald-500' : theme.accent
           } text-white hover:scale-105 active:scale-95 shadow-xl shadow-black/5`}
         >
-          Commander <ChevronRight size={14} />
+          {isAdded ? 'Ajouté !' : 'Ajouter au panier'} <ChevronRight size={14} />
         </button>
       </div>
     </motion.div>

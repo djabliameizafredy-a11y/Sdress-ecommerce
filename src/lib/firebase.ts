@@ -31,7 +31,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -44,5 +44,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error Detail: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+
+  let userMessage = 'Une erreur inattendue est survenue.';
+  if (error?.code === 'permission-denied') {
+    userMessage = 'Accès refusé. Vous n\'avez pas les permissions nécessaires.';
+  } else if (error?.code === 'unavailable') {
+    userMessage = 'Le service est temporairement indisponible. Vérifiez votre connexion.';
+  }
+
+  throw new Error(userMessage);
 }
